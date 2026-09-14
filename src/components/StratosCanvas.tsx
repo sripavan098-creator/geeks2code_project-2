@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, Line, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import ParticleBurst from './ParticleBurst';
 
 // Types
 interface NodeData {
@@ -36,6 +37,13 @@ interface SnapParticle {
   velocity: THREE.Vector3;
   life: number;
   color: string;
+}
+
+interface ActiveBurst {
+  id: string;
+  position: [number, number, number];
+  color: string;
+  active: boolean;
 }
 
 // Custom Physics Engine (Zero-Gravity Spring System)
@@ -477,6 +485,7 @@ function Scene({
   dragNode,
   setDragNode,
   snapParticles,
+  activeBursts,
 }: { 
   physicsState: PhysicsState;
   setPhysicsState: React.Dispatch<React.SetStateAction<PhysicsState>>;
@@ -485,6 +494,7 @@ function Scene({
   dragNode: { id: string | null; position: THREE.Vector3 | null };
   setDragNode: (d: { id: string | null; position: THREE.Vector3 | null }) => void;
   snapParticles: SnapParticle[];
+  activeBursts: ActiveBurst[];
 }) {
   usePhysics(physicsState, setPhysicsState, dragNode);
   
@@ -558,6 +568,17 @@ function Scene({
       {/* Snap explosion particles */}
       <SnapExplosion particles={snapParticles} />
       
+      {/* Particle Burst Effects */}
+      {activeBursts.map(burst => (
+        <ParticleBurst
+          key={burst.id}
+          position={burst.position}
+          active={burst.active}
+          color={burst.color}
+          count={60}
+        />
+      ))}
+      
       {/* Post-processing */}
       <EffectComposer>
         <Bloom 
@@ -573,7 +594,7 @@ function Scene({
 }
 
 // Export types
-export type { NodeData, TetherData, PhysicsState, SnapParticle };
+export type { NodeData, TetherData, PhysicsState, SnapParticle, ActiveBurst };
 
 // Main Canvas Component
 export default function StratosCanvas({ 
@@ -584,6 +605,7 @@ export default function StratosCanvas({
   dragNode,
   setDragNode,
   snapParticles,
+  activeBursts = [],
 }: { 
   physicsState: PhysicsState;
   setPhysicsState: React.Dispatch<React.SetStateAction<PhysicsState>>;
@@ -592,6 +614,7 @@ export default function StratosCanvas({
   dragNode: { id: string | null; position: THREE.Vector3 | null };
   setDragNode: (d: { id: string | null; position: THREE.Vector3 | null }) => void;
   snapParticles: SnapParticle[];
+  activeBursts?: ActiveBurst[];
 }) {
   return (
     <Canvas 
@@ -609,6 +632,7 @@ export default function StratosCanvas({
         dragNode={dragNode}
         setDragNode={setDragNode}
         snapParticles={snapParticles}
+        activeBursts={activeBursts}
       />
     </Canvas>
   );

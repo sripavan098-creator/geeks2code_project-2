@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import StratosCanvas from './components/StratosCanvas';
-import type { PhysicsState, SnapParticle } from './components/StratosCanvas';
+import type { PhysicsState, SnapParticle, ActiveBurst } from './components/StratosCanvas';
 import HUD from './components/HUD';
+import { useTelemetry } from './hooks/useTelemetry';
 
 // Initial supply chain network data
 function createInitialState(): PhysicsState {
@@ -115,7 +116,11 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [activeBursts, setActiveBursts] = useState<ActiveBurst[]>([]);
   const notifTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Get route IDs for telemetry
+  const routeIds = useMemo(() => physicsState.tethers.map(t => t.id), [physicsState.tethers]);
 
   useEffect(() => {
     // Simulate loading
@@ -125,6 +130,103 @@ function App() {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Add a particle burst at a position
+  const addBurst = useCallback((position: [number, number, number], color: string) => {
+    const id = `burst-${Date.now()}-${Math.random()}`;
+    setActiveBursts(prev => [...prev, { id, position, color, active: true }]);
+    // Remove burst after animation completes
+    setTimeout(() => {
+      setActiveBursts(prev => prev.filter(b => b.id !== id));
+    }, 3000);
+  }, []);
+
+  // Handle telemetry route snap events
+  const handleTelemetryRouteSnap = useCallback((routeId: string) => {
+    // Trigger the break via the existing handleBreakTether logic
+    setPhysicsState(prev => {
+      const tether = prev.tethers.find(t => t.id === routeId);
+      if (!tether || tether.broken) return prev;
+      
+      const newTethers = prev.tethers.map(t => 
+        t.id === routeId ? { ...t, broken: true } : t
+      );
+      
+      // Apply impulse to connected nodes
+      const newNodes = prev.nodes.map(node => {
+        if (node.id === tether.from || node.id === tether.to) {
+          const impulse = new THREE.Vector3(
+            (Math.random() - 0.5) * 4,
+            (Math.random() - 0.5) * 4,
+            (Math.random() - 0.5) * 4
+          );
+          return {
+            ...node,
+            position: node.position.clone(),
+            velocity: node.velocity.clone().add(impulse)
+          };
+        }
+        return { ...node, position: node.position.clone(), velocity: node.velocity.clone() };
+      });
+      
+      // Create particle burst at midpoint
+      const nodeA = prev.nodes.find(n => n.id === tether.from);
+      const nodeB = prev.nodes.find(n => n.id === tether.to);
+      if (nodeA && nodeB) {
+        const midPoint = new THREE.Vector3().addVectors(nodeA.position, nodeB.position).multiplyScalar(0.5);
+        addBurst([midPoint.x, midPoint.y, midPoint.z], '#00ffcc');
+        
+        // Also create snap particles
+        const particles: SnapParticle[] = [];
+        for (let i = 0; i < 30; i++) {
+          particles.push({
+            id: `p-${Date.now()}-${i}`,
+            position: midPoint.clone(),
+            velocity: new THREE.Vector3(
+              (Math.random() - 0.5) * 8,
+              (Math.random() - 0.5) * 8,
+              (Math.random() - 0.5) * 8
+            ),
+            life: 1,
+            color: '#ff0055'
+          });
+        }
+        setSnapParticles(prev => [...prev, ...particles]);
+        setTimeout(() => {
+          setSnapParticles(prev => prev.filter(p => !particles.includes(p)));
+        }, 2000);
+      }
+      
+      return { nodes: newNodes, tethers: newTethers };
+    });
+    
+    showNotification('⚡ LIVE TELEMETRY: Route failure detected — network rebalancing');
+    
+    // Auto-rebalance after 6 seconds
+    setTimeout(() => {
+      setPhysicsState(prev => {
+        const newTethers = prev.tethers.map(t => 
+          t.id === routeId ? { ...t, broken: false, tension: 0 } : t
+        );
+        const newNodes = prev.nodes.map(node => {
+          const toCenter = new THREE.Vector3().sub(node.position).multiplyScalar(0.3);
+          return {
+            ...node,
+            position: node.position.clone(),
+            velocity: node.velocity.clone().add(toCenter)
+          };
+        });
+        return { nodes: newNodes, tethers: newTethers };
+      });
+      showNotification('✓ Auto-rebalance complete — route restored');
+    }, 6000);
+  }, [addBurst, showNotification]);
+
+  // Initialize telemetry
+  const { events, isSimulating, toggleSimulation, eventCount, routeSnapCount } = useTelemetry(
+    routeIds,
+    handleTelemetryRouteSnap
+  );
 
   const showNotification = useCallback((msg: string) => {
     setNotification(msg);
