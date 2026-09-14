@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import type { PhysicsState } from './StratosCanvas';
+import type { TelemetryEvent } from '../hooks/useTelemetry';
 
 interface HUDProps {
   physicsState: PhysicsState;
@@ -8,6 +9,11 @@ interface HUDProps {
   onBreakTether: (tetherId: string) => void;
   onRebalance: () => void;
   onSimulateDisruption: () => void;
+  telemetryEvents?: TelemetryEvent[];
+  isTelemetryActive?: boolean;
+  onToggleTelemetry?: () => void;
+  telemetryEventCount?: number;
+  telemetrySnapCount?: number;
 }
 
 function formatNumber(n: number): string {
@@ -19,7 +25,12 @@ export default function HUD({
   selectedNode, 
   onBreakTether, 
   onRebalance, 
-  onSimulateDisruption 
+  onSimulateDisruption,
+  telemetryEvents = [],
+  isTelemetryActive = true,
+  onToggleTelemetry,
+  telemetryEventCount = 0,
+  telemetrySnapCount = 0,
 }: HUDProps) {
   const [time, setTime] = useState(new Date());
   const [showMetrics, setShowMetrics] = useState(true);
@@ -146,9 +157,70 @@ export default function HUD({
             <div className="text-gray-500 text-[10px] font-mono">
               Network: <span className={networkHealth >= 80 ? 'text-green-400' : networkHealth >= 50 ? 'text-amber-400' : 'text-red-400'}>{networkHealth}%</span>
             </div>
+            <div className="text-gray-500 text-[10px] font-mono">
+              Telemetry: <span className={isTelemetryActive ? 'text-green-400' : 'text-gray-500'}>{isTelemetryActive ? '● LIVE' : '○ PAUSED'}</span>
+            </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Live Telemetry Feed */}
+      <motion.div
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="pointer-events-auto glass-panel rounded-2xl p-4 max-w-[280px] absolute right-4 md:right-6 top-40"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isTelemetryActive ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
+            <h3 className="text-gray-300 text-[10px] font-mono uppercase tracking-[0.15em]">
+              Live Telemetry
+            </h3>
+          </div>
+          {onToggleTelemetry && (
+            <button 
+              onClick={onToggleTelemetry}
+              className="text-[9px] font-mono text-gray-500 hover:text-white transition-colors"
+            >
+              {isTelemetryActive ? 'PAUSE' : 'RESUME'}
+            </button>
+          )}
+        </div>
+        
+        <div className="flex gap-4 mb-3 text-[10px] font-mono">
+          <div>
+            <span className="text-gray-500">Events: </span>
+            <span className="text-cyan-400">{telemetryEventCount}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Snaps: </span>
+            <span className="text-red-400">{telemetrySnapCount}</span>
+          </div>
+        </div>
+        
+        <div className="space-y-1 max-h-32 overflow-y-auto">
+          {telemetryEvents.slice(-5).reverse().map((event, i) => (
+            <div 
+              key={`${event.timestamp}-${i}`}
+              className={`text-[9px] font-mono px-2 py-1 rounded ${
+                event.type === 'ROUTE_SNAP' 
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
+                  : event.type === 'TENSION_WARNING' && (event.value ?? 0) > 15
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    : 'bg-white/5 text-gray-400'
+              }`}
+            >
+              {event.message}
+            </div>
+          ))}
+          {telemetryEvents.length === 0 && (
+            <div className="text-[9px] font-mono text-gray-600 px-2 py-1">
+              Awaiting telemetry data...
+            </div>
+          )}
+        </div>
+      </motion.div>
 
       {/* Selected Node Panel */}
       <AnimatePresence>
