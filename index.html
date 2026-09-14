@@ -1,30 +1,31 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Stratos — A zero-gravity physics-based 3D Digital Twin for global supply chain intelligence. Visualize disruptions, test network resilience, and rebalance routes in real-time." />
+    <meta name="theme-color" content="#030308" />
     <title>Stratos — Zero-Gravity Supply Chain Intelligence</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <style>
-      /* 内联样式确保主题色立即生效，避免闪烁 */
-      html,
-      body {
+      /* Stratos dark space theme */
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
-      }
-      html.light,
-      html.light body {
-        background-color: #ffffff !important;
-        color: #000000;
+        background-color: #030308 !important;
+        color: #ffffff;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
       html.dark,
       html.dark body {
-        background-color: #1a1a1a !important;
+        background-color: #030308 !important;
         color: #ffffff;
       }
     </style>
@@ -39,20 +40,8 @@
           document.documentElement.setAttribute("data-theme", theme);
         }
 
-        if (isInIframe) {
-          // 监听父窗口主动推送的主题消息
-          window.addEventListener("message", function (event) {
-            if (event.data && typeof event.data.theme === "string") {
-              const theme = event.data.theme;
-              if (theme === "light" || theme === "dark") {
-                applyThemeToDOM(theme);
-              }
-            }
-          });
-        } else {
-          // 非 iframe 环境，使用默认 light 主题
-          applyThemeToDOM("light");
-        }
+        // Always use dark theme for Stratos
+        applyThemeToDOM("dark");
       })();
     </script>
       <script>
