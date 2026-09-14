@@ -131,6 +131,12 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  const showNotification = useCallback((msg: string) => {
+    setNotification(msg);
+    if (notifTimeout.current) clearTimeout(notifTimeout.current);
+    notifTimeout.current = setTimeout(() => setNotification(null), 3000);
+  }, []);
+
   // Add a particle burst at a position
   const addBurst = useCallback((position: [number, number, number], color: string) => {
     const id = `burst-${Date.now()}-${Math.random()}`;
@@ -227,12 +233,6 @@ function App() {
     routeIds,
     handleTelemetryRouteSnap
   );
-
-  const showNotification = useCallback((msg: string) => {
-    setNotification(msg);
-    if (notifTimeout.current) clearTimeout(notifTimeout.current);
-    notifTimeout.current = setTimeout(() => setNotification(null), 3000);
-  }, []);
 
   const createSnapParticles = useCallback((position: THREE.Vector3, color: string) => {
     const particles: SnapParticle[] = [];
@@ -436,6 +436,7 @@ function App() {
           dragNode={dragNode}
           setDragNode={setDragNode}
           snapParticles={snapParticles}
+          activeBursts={activeBursts}
         />
       </div>
       
@@ -446,6 +447,11 @@ function App() {
         onBreakTether={handleBreakTether}
         onRebalance={handleRebalance}
         onSimulateDisruption={handleSimulateDisruption}
+        telemetryEvents={events}
+        isTelemetryActive={isSimulating}
+        onToggleTelemetry={toggleSimulation}
+        telemetryEventCount={eventCount}
+        telemetrySnapCount={routeSnapCount}
       />
       
       {/* Notification Toast */}
